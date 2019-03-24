@@ -9,28 +9,27 @@ def is_authenticated():
         def __is_authenticated_decorator(*args, **kwargs):
             # get the auth token
             auth_header = request.headers.get('Authorization')
-            if auth_header:
-                try:
-                    auth_token = auth_header.split(" ")[1]
-                except IndexError:
-                    userObject = {
-                        'status': 'fail',
-                        'message': 'Bearer token malformed.'
-                    }
-                    return make_response(jsonify(userObject)), 401
+            if (auth_header is not None) and (' ' in auth_header):
+                auth_token = auth_header.split(" ")[1]
             else:
-                auth_token = ''
+                auth_token = auth_header
             if auth_token:
-                resp = User.decode_auth_token(auth_token)
-                if not isinstance(resp, str):
-                    user = User.query.filter_by(id=resp).first()
+                resp = None
+                try:
+                    resp = User.decode_auth_token(auth_token)
+                except Exception as e:
+                    print("invalid id token")
+                if isinstance(resp, str) and ('Invalid token' not in resp) and ('Signature expired' not in resp) and (
+                        'Token blacklisted' not in resp):
+                    id = resp
+                    user = User.find_one_by_id(id)
                     userObject = {
                         'status': 'success',
                         'data': {
-                            'user_id': user.id,
-                            'email': user.email,
-                            'admin': user.admin,
-                            'registered_on': user.registered_on
+                            'user_id': user['_id'],
+                            'email': user['email'],
+                            'admin': user['admin'],
+                            'registered_on': user['registered_on']
                         }
                     }
                     print('authenticated user ')

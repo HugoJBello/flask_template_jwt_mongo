@@ -40,7 +40,7 @@ hello_view = HelloWorld.as_view('hello')
 hello_secured = HelloWorldSecured.as_view('hello-sec')
 
 hello_blueprint.add_url_rule(
-    '/',
+    '/hi',
     view_func=hello_view,
     methods=['GET']
 )

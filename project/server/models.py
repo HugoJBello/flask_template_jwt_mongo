@@ -99,7 +99,7 @@ class BlacklistToken:
         return '<id: token: {}'.format(self.token)
 
     def save(self):
-        item = {"token":self.token, "blacklisted_on":self.blacklisted_on}
+        item = {"token": self.token, "blacklisted_on": self.blacklisted_on, "_id": self.token}
         db_blacklist.save(item)
 
     @staticmethod
