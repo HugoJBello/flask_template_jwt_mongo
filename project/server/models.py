@@ -4,42 +4,17 @@
 import jwt
 import datetime
 import os
+from bson.objectid import ObjectId
 
 from project.server import app, db, bcrypt
 
-from sqlalchemy import *
+db_users = db["auth_db"].users
+db_blacklist = db["auth_db"].blacklisted_tokens
 
-metadata = MetaData(db.engine)
 
-user = Table('users', metadata,
-    Column('id', Integer, primary_key=True),
-    Column('email', String(255), nullable=False),
-    Column('username', String(255), nullable=True),
-    Column('password', String(255)),
-    Column('registered_on', DateTime),
-    Column('admin', Boolean, nullable=False)
-)
-
-blacklist_token = Table('blacklist_tokens', metadata,
-    Column('id', Integer, primary_key=True),
-    Column('token', String(500), nullable=False),
-    Column('blacklisted_on', DateTime)
-)
-metadata.create_all()
-
-class User(db.Model):
+class User:
     """ User Model for storing user related details """
-    __tablename__ = "users"
-
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    email = db.Column(db.String(255), unique=True, nullable=False)
-    username = db.Column(db.String(255), unique=False, nullable=True)
-    password = db.Column(db.String(255), nullable=False)
-    registered_on = db.Column(db.DateTime, nullable=False)
-    admin = db.Column(db.Boolean, nullable=False, default=False)
-
-
-    def __init__(self, email, password, username,admin=False):
+    def __init__(self, email, password, username, admin=False, id=None):
         self.email = email
         self.username = username
         self.password = bcrypt.generate_password_hash(
@@ -48,11 +23,33 @@ class User(db.Model):
         self.registered_on = datetime.datetime.now()
         self.admin = admin
 
-    def encode_auth_token(self, user_id):
+    def save(self):
+        id = db_users.insert_one(self.__dict__).inserted_id
+        self._id =str(id)
+
+    @staticmethod
+    def delete_one(username):
+        db_users.delete_one({'username': username})
+
+    @staticmethod
+    def find_one_by_username(username):
+        result = db_users.find_one({'username':username})
+        print(result)
+        if (result):
+            result['_id'] = str(result['_id'])
+        return result
+
+    @staticmethod
+    def find_one_by_id(id):
+        return db_users.find_one({'_id': ObjectId(id)})
+
+    @staticmethod
+    def encode_auth_token(user_id):
         """
         Generates the Auth Token
         :return: string
         """
+        user_id=str(user_id)
         try:
             payload = {
                 'exp': datetime.datetime.utcnow() + datetime.timedelta(days=0, seconds=5),
@@ -81,21 +78,18 @@ class User(db.Model):
                 return 'Token blacklisted. Please log in again.'
             else:
                 return payload['sub']
-        except jwt.ExpiredSignatureError:
+        except jwt.ExpiredSignatureError as e:
+            print(e)
             return 'Signature expired. Please log in again.'
-        except jwt.InvalidTokenError:
+        except jwt.InvalidTokenError as e:
+            print(e)
             return 'Invalid token. Please log in again.'
 
 
-class BlacklistToken(db.Model):
+class BlacklistToken:
     """
     Token Model for storing JWT tokens
     """
-    __tablename__ = 'blacklist_tokens'
-
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    token = db.Column(db.String(500), unique=True, nullable=False)
-    blacklisted_on = db.Column(db.DateTime, nullable=False)
 
     def __init__(self, token):
         self.token = token
@@ -104,10 +98,19 @@ class BlacklistToken(db.Model):
     def __repr__(self):
         return '<id: token: {}'.format(self.token)
 
+    def save(self):
+        item = {"token":self.token, "blacklisted_on":self.blacklisted_on}
+        db_blacklist.save(item)
+
+    @staticmethod
+    def find_one(self, token):
+        return db_blacklist.find_one({'token': token})
+
     @staticmethod
     def check_blacklist(auth_token):
         # check whether auth token has been blacklisted
-        res = BlacklistToken.query.filter_by(token=str(auth_token)).first()
+        token = str(auth_token)
+        res = db_blacklist.find_one({'token': token})
         if res:
             return True
         else:

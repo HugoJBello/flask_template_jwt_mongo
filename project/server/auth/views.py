@@ -19,7 +19,8 @@ class RegisterAPI(MethodView):
         # get the post data
         post_data = request.get_json()
         # check if user already exists
-        user = User.query.filter_by(username=post_data.get('username')).first()
+        username = post_data.get('username')
+        user = User.find_one_by_username(username)
         if not user:
             try:
                 user = User(
@@ -28,10 +29,9 @@ class RegisterAPI(MethodView):
                     password=post_data.get('password')
                 )
                 # insert the user
-                db.session.add(user)
-                db.session.commit()
+                user.save()
                 # generate the auth token
-                auth_token = user.encode_auth_token(user.id)
+                auth_token = user.encode_auth_token(user._id)
                 responseObject = {
                     'status': 'success',
                     'message': 'Successfully registered.',
@@ -62,18 +62,19 @@ class LoginAPI(MethodView):
         post_data = request.get_json()
         try:
             # fetch the user data
-            user = User.query.filter_by(
-                username=post_data.get('username')
-            ).first()
+            username = post_data.get('username')
+            user = User.find_one_by_username(username)
+            print(user)
             if user and bcrypt.check_password_hash(
-                user.password, post_data.get('password')
+                user["password"], post_data.get('password')
             ):
-                auth_token = user.encode_auth_token(user.id)
+                auth_token = User.encode_auth_token(user["_id"])
+                auth_token_decoded = auth_token.decode()
                 if auth_token:
                     responseObject = {
                         'status': 'success',
                         'message': 'Successfully logged in.',
-                        'auth_token': auth_token.decode()
+                        'auth_token': auth_token_decoded
                     }
                     return make_response(jsonify(responseObject)), 200
             else:
@@ -111,15 +112,16 @@ class UserAPI(MethodView):
             auth_token = ''
         if auth_token:
             resp = User.decode_auth_token(auth_token)
-            if not isinstance(resp, str):
-                user = User.query.filter_by(id=resp).first()
+            if isinstance(resp, str):
+                id = resp
+                user = User.find_one_by_id(id)
                 responseObject = {
                     'status': 'success',
                     'data': {
-                        'user_id': user.id,
-                        'email': user.email,
-                        'admin': user.admin,
-                        'registered_on': user.registered_on
+                        'user_id': str(user["_id"]),
+                        'email': user['email'],
+                        'admin': user['admin'],
+                        'registered_on': user['registered_on']
                     }
                 }
                 return make_response(jsonify(responseObject)), 200
@@ -149,13 +151,12 @@ class LogoutAPI(MethodView):
             auth_token = ''
         if auth_token:
             resp = User.decode_auth_token(auth_token)
-            if not isinstance(resp, str):
+            if isinstance(resp, str):
                 # mark the token as blacklisted
                 blacklist_token = BlacklistToken(token=auth_token)
                 try:
                     # insert the token
-                    db.session.add(blacklist_token)
-                    db.session.commit()
+                    blacklist_token.save()
                     responseObject = {
                         'status': 'success',
                         'message': 'Successfully logged out.'
