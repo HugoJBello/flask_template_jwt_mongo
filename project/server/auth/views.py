@@ -99,9 +99,11 @@ class UserAPI(MethodView):
     def get(self):
         # get the auth token
         auth_header = request.headers.get('Authorization')
+        auth_token = auth_header
         if auth_header:
             try:
-                auth_token = auth_header.split(" ")[1]
+                if (' ' in auth_header):
+                    auth_token = auth_header.split(" ")[1]
             except IndexError:
                 responseObject = {
                     'status': 'fail',
@@ -111,8 +113,12 @@ class UserAPI(MethodView):
         else:
             auth_token = ''
         if auth_token:
-            resp = User.decode_auth_token(auth_token)
-            if isinstance(resp, str):
+            resp = None
+            try:
+                resp = User.decode_auth_token(auth_token)
+            except Exception as e:
+                print("invalid id token")
+            if isinstance(resp, str) and 'Invalid token' not in resp:
                 id = resp
                 user = User.find_one_by_id(id)
                 responseObject = {
