@@ -8,7 +8,7 @@ from bson.objectid import ObjectId
 
 from project.server import app, db, bcrypt
 
-db_users = db["auth_db"].users
+db_users = db["testing"].users
 db_blacklist = db["auth_db"].blacklisted_tokens
 
 
@@ -22,6 +22,7 @@ class User:
         ).decode()
         self.registered_on = datetime.datetime.now()
         self.admin = admin
+        self.id = id
 
     def save(self):
         id = db_users.insert_one(self.__dict__).inserted_id
@@ -41,7 +42,7 @@ class User:
 
     @staticmethod
     def find_one_by_id(id):
-        return db_users.find_one({'_id': ObjectId(id)})
+        return db_users.find_one({})
 
     @staticmethod
     def encode_auth_token(user_id):
@@ -54,7 +55,7 @@ class User:
             payload = {
                 'exp': datetime.datetime.utcnow() + datetime.timedelta(days=0, seconds=5),
                 'iat': datetime.datetime.utcnow(),
-                'sub': user_id
+                'UserId': user_id
             }
             return jwt.encode(
                 payload,
@@ -72,12 +73,12 @@ class User:
         :return: integer|string
         """
         try:
-            payload = jwt.decode(auth_token, os.getenv('SECRET_KEY'))
+            payload = jwt.decode(auth_token, os.getenv('SECRET_KEY'), algorithm='HS256')
             is_blacklisted_token = BlacklistToken.check_blacklist(auth_token)
             if is_blacklisted_token:
                 return 'Token blacklisted. Please log in again.'
             else:
-                return payload['sub']
+                return payload['Username']
         except jwt.ExpiredSignatureError as e:
             print(e)
             return 'Signature expired. Please log in again.'

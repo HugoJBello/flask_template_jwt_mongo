@@ -3,7 +3,7 @@
 import os
 basedir = os.path.abspath(os.path.dirname(__file__))
 postgres_local_base = os.getenv("MYSQL_URL")
-database_name = 'flask_jwt_auth'
+database_name = 'testing'
 
 
 class BaseConfig:

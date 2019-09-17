@@ -1,0 +1,5 @@
+{
+  "project/tests/base_test.py": true, 
+  "project/tests/test_auth.py": true, 
+  "project/tests/test_hello_world.py": true
+}

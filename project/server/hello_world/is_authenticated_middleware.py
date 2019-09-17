@@ -22,7 +22,7 @@ def is_authenticated():
                 if isinstance(resp, str) and ('Invalid token' not in resp) and ('Signature expired' not in resp) and (
                         'Token blacklisted' not in resp):
                     id = resp
-                    user = User.find_one_by_id(id)
+                    user = User.find_one_by_username(id)
                     userObject = {
                         'status': 'success',
                         'data': {
