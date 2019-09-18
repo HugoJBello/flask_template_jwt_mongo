@@ -3,8 +3,7 @@ from flask import request, Blueprint, make_response, jsonify
 from flask_restful import Resource
 from flask.views import MethodView
 
-from project.server.hello_world.is_authenticated_middleware import is_authenticated
-from project.server import bcrypt, db
+from project.server.middlewares.is_authenticated_middleware import is_authenticated
 
 hello_blueprint = Blueprint('hello', __name__)
 
